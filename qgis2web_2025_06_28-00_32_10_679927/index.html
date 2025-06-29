@@ -1,0 +1,1040 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/nouislider.min.css">
+        <link rel="stylesheet" href="css/leaflet-control-geocoder.Geocoder.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>WEBGIS Fasilitas Kesehatan Kota Makassar</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet-control-geocoder.Geocoder.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="js/tailDT.js"></script>
+<script src="js/nouislider.min.js"></script>
+<script src="js/wNumb.js"></script>
+        <script src="data/BatasKotaKabupaten_1.js"></script>
+        <script src="data/BatasKecamatan_2.js"></script>
+        <script src="data/BangunandanPopulasi_3.js"></script>
+        <script src="data/AksesibilitasRadiusLayanan_4.js"></script>
+        <script src="data/JaringanJalan_5.js"></script>
+        <script src="data/JenisFasilitasKesehatan_6.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#04225a',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#04225a',
+                fillOpacity: 1
+              });
+            }
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[-5.218124122367477,119.36847390619931],[-5.053989524598963,119.58184405517021]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var title = new L.Control({'position':'topright'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>WEBGIS Fasilitas Kesehatan Kota Makassar</h2>';
+        };
+        title.addTo(map);
+        var abstract = new L.Control({'position':'bottomright'});
+        abstract.onAdd = function (map) {
+            this._div = L.DomUtil.create('div',
+            'leaflet-control abstract');
+            this._div.id = 'abstract'
+                this._div.setAttribute("onmouseenter", "abstract.show()");
+                this._div.setAttribute("onmouseleave", "abstract.hide()");
+                this.hide();
+                return this._div;
+            };
+            abstract.hide = function () {
+                this._div.classList.remove("abstractUncollapsed");
+                this._div.classList.add("abstract");
+                this._div.innerHTML = 'i'
+            }
+            abstract.show = function () {
+                this._div.classList.remove("abstract");
+                this._div.classList.add("abstractUncollapsed");
+                this._div.innerHTML = 'WebGIS ini menampilkan aksesibilitas dan jangkauan akses fasilitas kesehatan terhadap sebaran penduduk di Kota Makassar berdasarkan bangunan. Peta yang ditampilkan menyajikan informasi seputar jangkauan fasilitas kesehatan dalam jarak 500, 1000, hingga 1.500 meter terhadap penduduk berdasarkan jaringan jalan.';
+        };
+        abstract.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_DarkMatter_0');
+        map.getPane('pane_DarkMatter_0').style.zIndex = 400;
+        var layer_DarkMatter_0 = L.tileLayer('https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+            pane: 'pane_DarkMatter_0',
+            opacity: 1.0,
+            attribution: '<a href="https://cartodb.com/basemaps/">Map tiles by CartoDB, under CC BY 3.0. Data by OpenStreetMap, under ODbL.</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_DarkMatter_0;
+        map.addLayer(layer_DarkMatter_0);
+        function pop_BatasKotaKabupaten_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">WADMKK</th>\
+                        <td>' + (feature.properties['WADMKK'] !== null ? autolinker.link(String(feature.properties['WADMKK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">WADMPR</th>\
+                        <td>' + (feature.properties['WADMPR'] !== null ? autolinker.link(String(feature.properties['WADMPR']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">SHAPE_Leng</th>\
+                        <td>' + (feature.properties['SHAPE_Leng'] !== null ? autolinker.link(String(feature.properties['SHAPE_Leng']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">SHAPE_Area</th>\
+                        <td>' + (feature.properties['SHAPE_Area'] !== null ? autolinker.link(String(feature.properties['SHAPE_Area']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">LAYER</th>\
+                        <td>' + (feature.properties['LAYER'] !== null ? autolinker.link(String(feature.properties['LAYER']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_BatasKotaKabupaten_1_0() {
+            return {
+                pane: 'pane_BatasKotaKabupaten_1',
+                opacity: 1,
+                color: 'rgba(255,242,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(243,166,178,0.0)',
+                interactive: false,
+            }
+        }
+        map.createPane('pane_BatasKotaKabupaten_1');
+        map.getPane('pane_BatasKotaKabupaten_1').style.zIndex = 401;
+        map.getPane('pane_BatasKotaKabupaten_1').style['mix-blend-mode'] = 'normal';
+        var layer_BatasKotaKabupaten_1 = new L.geoJson(json_BatasKotaKabupaten_1, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_BatasKotaKabupaten_1',
+            layerName: 'layer_BatasKotaKabupaten_1',
+            pane: 'pane_BatasKotaKabupaten_1',
+            onEachFeature: pop_BatasKotaKabupaten_1,
+            style: style_BatasKotaKabupaten_1_0,
+        });
+        bounds_group.addLayer(layer_BatasKotaKabupaten_1);
+        map.addLayer(layer_BatasKotaKabupaten_1);
+        function pop_BatasKecamatan_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Kecamatan</th>\
+                        <td>' + (feature.properties['WADMKC'] !== null ? autolinker.link(String(feature.properties['WADMKC']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Kabupaten</th>\
+                        <td>' + (feature.properties['WADMKK'] !== null ? autolinker.link(String(feature.properties['WADMKK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Provinsi</th>\
+                        <td>' + (feature.properties['WADMPR'] !== null ? autolinker.link(String(feature.properties['WADMPR']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_BatasKecamatan_2_0() {
+            return {
+                pane: 'pane_BatasKecamatan_2',
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(190,207,80,0.0)',
+                interactive: false,
+            }
+        }
+        map.createPane('pane_BatasKecamatan_2');
+        map.getPane('pane_BatasKecamatan_2').style.zIndex = 402;
+        map.getPane('pane_BatasKecamatan_2').style['mix-blend-mode'] = 'normal';
+        var layer_BatasKecamatan_2 = new L.geoJson(json_BatasKecamatan_2, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_BatasKecamatan_2',
+            layerName: 'layer_BatasKecamatan_2',
+            pane: 'pane_BatasKecamatan_2',
+            onEachFeature: pop_BatasKecamatan_2,
+            style: style_BatasKecamatan_2_0,
+        });
+        bounds_group.addLayer(layer_BatasKecamatan_2);
+        map.addLayer(layer_BatasKecamatan_2);
+        function pop_BangunandanPopulasi_3(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['latitude'] !== null ? autolinker.link(String(feature.properties['latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['longitude'] !== null ? autolinker.link(String(feature.properties['longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['area_in_me'] !== null ? autolinker.link(String(feature.properties['area_in_me']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['EstPop'] !== null ? autolinker.link(String(feature.properties['EstPop']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Akses'] !== null ? autolinker.link(String(feature.properties['Akses']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_BangunandanPopulasi_3_0(feature) {
+            switch(String(feature.properties['Akses'])) {
+                case 'Terjangkau':
+                    return {
+                pane: 'pane_BangunandanPopulasi_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(70,171,232,1.0)',
+                interactive: false,
+            }
+                    break;
+                case 'Tidak Terjangkau':
+                    return {
+                pane: 'pane_BangunandanPopulasi_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(206,18,42,1.0)',
+                interactive: false,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_BangunandanPopulasi_3');
+        map.getPane('pane_BangunandanPopulasi_3').style.zIndex = 403;
+        map.getPane('pane_BangunandanPopulasi_3').style['mix-blend-mode'] = 'normal';
+        var layer_BangunandanPopulasi_3 = new L.geoJson(json_BangunandanPopulasi_3, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_BangunandanPopulasi_3',
+            layerName: 'layer_BangunandanPopulasi_3',
+            pane: 'pane_BangunandanPopulasi_3',
+            onEachFeature: pop_BangunandanPopulasi_3,
+            style: style_BangunandanPopulasi_3_0,
+        });
+        bounds_group.addLayer(layer_BangunandanPopulasi_3);
+        function pop_AksesibilitasRadiusLayanan_4(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Longitude</th>\
+                        <td>' + (feature.properties['Longitude'] !== null ? autolinker.link(String(feature.properties['Longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Latitude</th>\
+                        <td>' + (feature.properties['Latitude'] !== null ? autolinker.link(String(feature.properties['Latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Radius</th>\
+                        <td>' + (feature.properties['Radius'] !== null ? autolinker.link(String(feature.properties['Radius']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Moda</th>\
+                        <td>' + (feature.properties['Moda'] !== null ? autolinker.link(String(feature.properties['Moda']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Populasi</th>\
+                        <td>' + (feature.properties['Populasi'] !== null ? autolinker.link(String(feature.properties['Populasi']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Kecamatan</th>\
+                        <td>' + (feature.properties['Kecamatan'] !== null ? autolinker.link(String(feature.properties['Kecamatan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Jangkauan</th>\
+                        <td>' + (feature.properties['Jangkauan'] !== null ? autolinker.link(String(feature.properties['Jangkauan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_AksesibilitasRadiusLayanan_4_0(feature) {
+            switch(String(feature.properties['Radius'])) {
+                case '500':
+                    return {
+                pane: 'pane_AksesibilitasRadiusLayanan_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(100,15,130,0.675)',
+                interactive: true,
+            }
+                    break;
+                case '1000':
+                    return {
+                pane: 'pane_AksesibilitasRadiusLayanan_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(182,55,122,0.675)',
+                interactive: true,
+            }
+                    break;
+                case '1500':
+                    return {
+                pane: 'pane_AksesibilitasRadiusLayanan_4',
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(252,253,191,0.675)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_AksesibilitasRadiusLayanan_4');
+        map.getPane('pane_AksesibilitasRadiusLayanan_4').style.zIndex = 404;
+        map.getPane('pane_AksesibilitasRadiusLayanan_4').style['mix-blend-mode'] = 'normal';
+        var layer_AksesibilitasRadiusLayanan_4 = new L.geoJson(json_AksesibilitasRadiusLayanan_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_AksesibilitasRadiusLayanan_4',
+            layerName: 'layer_AksesibilitasRadiusLayanan_4',
+            pane: 'pane_AksesibilitasRadiusLayanan_4',
+            onEachFeature: pop_AksesibilitasRadiusLayanan_4,
+            style: style_AksesibilitasRadiusLayanan_4_0,
+        });
+        bounds_group.addLayer(layer_AksesibilitasRadiusLayanan_4);
+        map.addLayer(layer_AksesibilitasRadiusLayanan_4);
+        function pop_JaringanJalan_5(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">REMARK</th>\
+                        <td>' + (feature.properties['REMARK'] !== null ? autolinker.link(String(feature.properties['REMARK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">SHAPE_Leng</th>\
+                        <td>' + (feature.properties['SHAPE_Leng'] !== null ? autolinker.link(String(feature.properties['SHAPE_Leng']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_JaringanJalan_5_0(feature) {
+            switch(String(feature.properties['REMARK'])) {
+                case 'Jalan Arteri':
+                    return {
+                pane: 'pane_JaringanJalan_5',
+                opacity: 1,
+                color: 'rgba(103,216,38,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+                    break;
+                case 'Jalan Kolektor':
+                    return {
+                pane: 'pane_JaringanJalan_5',
+                opacity: 1,
+                color: 'rgba(134,214,225,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+                    break;
+                case 'Jalan Tol Dua Jalur Dengan Pemisah Fisik':
+                    return {
+                pane: 'pane_JaringanJalan_5',
+                opacity: 1,
+                color: 'rgba(149,55,149,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: false,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_JaringanJalan_5');
+        map.getPane('pane_JaringanJalan_5').style.zIndex = 405;
+        map.getPane('pane_JaringanJalan_5').style['mix-blend-mode'] = 'normal';
+        var layer_JaringanJalan_5 = new L.geoJson(json_JaringanJalan_5, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_JaringanJalan_5',
+            layerName: 'layer_JaringanJalan_5',
+            pane: 'pane_JaringanJalan_5',
+            onEachFeature: pop_JaringanJalan_5,
+            style: style_JaringanJalan_5_0,
+        });
+        bounds_group.addLayer(layer_JaringanJalan_5);
+        map.addLayer(layer_JaringanJalan_5);
+        function pop_JenisFasilitasKesehatan_6(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Nama</th>\
+                        <td>' + (feature.properties['Nama'] !== null ? autolinker.link(String(feature.properties['Nama']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Jenis</th>\
+                        <td>' + (feature.properties['Jenis'] !== null ? autolinker.link(String(feature.properties['Jenis']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Alamat</th>\
+                        <td>' + (feature.properties['Alamat'] !== null ? autolinker.link(String(feature.properties['Alamat']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Kontak</th>\
+                        <td>' + (feature.properties['Kontak'] !== null ? autolinker.link(String(feature.properties['Kontak']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Latitude</th>\
+                        <td>' + (feature.properties['Latitude'] !== null ? autolinker.link(String(feature.properties['Latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Longitude</th>\
+                        <td>' + (feature.properties['Longitude'] !== null ? autolinker.link(String(feature.properties['Longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Kecamatan</th>\
+                        <td>' + (feature.properties['Kecamatan'] !== null ? autolinker.link(String(feature.properties['Kecamatan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Populasi</th>\
+                        <td>' + (feature.properties['Populasi'] !== null ? autolinker.link(String(feature.properties['Populasi']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2"><strong>Gambar Lok</strong><br />' + (feature.properties['Gambar Lok'] !== null ? '<img src="images/' + String(feature.properties['Gambar Lok']).replace(/[\\/:]/g, '_').trim().replace(/'/g, '\'').replace(/"/g, '&quot;') + '">' : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_JenisFasilitasKesehatan_6_0(feature) {
+            switch(String(feature.properties['Jenis'])) {
+                case 'Faskes Alternatif':
+                    return {
+                pane: 'pane_JenisFasilitasKesehatan_6',
+                radius: 2.8,
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,32,77,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Klinik Spesifik':
+                    return {
+                pane: 'pane_JenisFasilitasKesehatan_6',
+                radius: 2.8,
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(23,58,109,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Klinik Umum dan Spesialis':
+                    return {
+                pane: 'pane_JenisFasilitasKesehatan_6',
+                radius: 2.8,
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(75,84,108,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Lainnya':
+                    return {
+                pane: 'pane_JenisFasilitasKesehatan_6',
+                radius: 2.8,
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(109,110,114,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Pendidikan dan Institusi Kesehatan':
+                    return {
+                pane: 'pane_JenisFasilitasKesehatan_6',
+                radius: 2.8,
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(142,138,121,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Pusat Kesehatan Masyarakat':
+                    return {
+                pane: 'pane_JenisFasilitasKesehatan_6',
+                radius: 2.8,
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(180,168,114,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Rumah Sakit':
+                    return {
+                pane: 'pane_JenisFasilitasKesehatan_6',
+                radius: 2.8,
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(219,199,97,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Toko Alat Medis':
+                    return {
+                pane: 'pane_JenisFasilitasKesehatan_6',
+                radius: 2.8,
+                opacity: 1,
+                color: 'rgba(35,35,35,0.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,234,70,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_JenisFasilitasKesehatan_6');
+        map.getPane('pane_JenisFasilitasKesehatan_6').style.zIndex = 406;
+        map.getPane('pane_JenisFasilitasKesehatan_6').style['mix-blend-mode'] = 'normal';
+        var layer_JenisFasilitasKesehatan_6 = new L.geoJson(json_JenisFasilitasKesehatan_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_JenisFasilitasKesehatan_6',
+            layerName: 'layer_JenisFasilitasKesehatan_6',
+            pane: 'pane_JenisFasilitasKesehatan_6',
+            onEachFeature: pop_JenisFasilitasKesehatan_6,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_JenisFasilitasKesehatan_6_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_JenisFasilitasKesehatan_6);
+        map.addLayer(layer_JenisFasilitasKesehatan_6);
+        var osmGeocoder = new L.Control.Geocoder({
+            collapsed: true,
+            position: 'topleft',
+            text: 'Search',
+            title: 'Testing'
+        }).addTo(map);
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .className += ' fa fa-search';
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .title += 'Search for a place';
+        var overlaysTree = [
+            {label: 'Jenis - Fasilitas Kesehatan<br /><table><tr><td style="text-align: center;"><img src="legend/JenisFasilitasKesehatan_6_FaskesAlternatif0.png" /></td><td>Faskes Alternatif</td></tr><tr><td style="text-align: center;"><img src="legend/JenisFasilitasKesehatan_6_KlinikSpesifik1.png" /></td><td>Klinik Spesifik</td></tr><tr><td style="text-align: center;"><img src="legend/JenisFasilitasKesehatan_6_KlinikUmumdanSpesialis2.png" /></td><td>Klinik Umum dan Spesialis</td></tr><tr><td style="text-align: center;"><img src="legend/JenisFasilitasKesehatan_6_Lainnya3.png" /></td><td>Lainnya</td></tr><tr><td style="text-align: center;"><img src="legend/JenisFasilitasKesehatan_6_PendidikandanInstitusiKesehatan4.png" /></td><td>Pendidikan dan Institusi Kesehatan</td></tr><tr><td style="text-align: center;"><img src="legend/JenisFasilitasKesehatan_6_PusatKesehatanMasyarakat5.png" /></td><td>Pusat Kesehatan Masyarakat</td></tr><tr><td style="text-align: center;"><img src="legend/JenisFasilitasKesehatan_6_RumahSakit6.png" /></td><td>Rumah Sakit</td></tr><tr><td style="text-align: center;"><img src="legend/JenisFasilitasKesehatan_6_TokoAlatMedis7.png" /></td><td>Toko Alat Medis</td></tr></table>', layer: layer_JenisFasilitasKesehatan_6},
+            {label: 'Jaringan Jalan<br /><table><tr><td style="text-align: center;"><img src="legend/JaringanJalan_5_JalanArteri0.png" /></td><td>Jalan Arteri</td></tr><tr><td style="text-align: center;"><img src="legend/JaringanJalan_5_JalanKolektor1.png" /></td><td>Jalan Kolektor</td></tr><tr><td style="text-align: center;"><img src="legend/JaringanJalan_5_JalanTolDuaJalurDenganPemisahFisik2.png" /></td><td>Jalan Tol Dua Jalur Dengan Pemisah Fisik</td></tr></table>', layer: layer_JaringanJalan_5},
+            {label: 'Aksesibilitas / Radius Layanan<br /><table><tr><td style="text-align: center;"><img src="legend/AksesibilitasRadiusLayanan_4_5000.png" /></td><td>500</td></tr><tr><td style="text-align: center;"><img src="legend/AksesibilitasRadiusLayanan_4_10001.png" /></td><td>1000</td></tr><tr><td style="text-align: center;"><img src="legend/AksesibilitasRadiusLayanan_4_15002.png" /></td><td>1500</td></tr></table>', layer: layer_AksesibilitasRadiusLayanan_4},
+            {label: 'Bangunan dan Populasi<br /><table><tr><td style="text-align: center;"><img src="legend/BangunandanPopulasi_3_Terjangkau0.png" /></td><td>Terjangkau</td></tr><tr><td style="text-align: center;"><img src="legend/BangunandanPopulasi_3_TidakTerjangkau1.png" /></td><td>Tidak Terjangkau</td></tr></table>', layer: layer_BangunandanPopulasi_3},
+            {label: '<img src="legend/BatasKecamatan_2.png" /> Batas Kecamatan', layer: layer_BatasKecamatan_2},
+            {label: '<img src="legend/BatasKotaKabupaten_1.png" /> Batas Kota/Kabupaten', layer: layer_BatasKotaKabupaten_1},
+            {label: "Dark Matter", layer: layer_DarkMatter_0, radioGroup: 'bm' },]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.className="row";
+        row.id="all";
+        row.style.height = "100%";
+        var col1 = document.createElement('div');
+        col1.className="col9";
+        col1.id = "mapWindow";
+        col1.style.height = "99%";
+        col1.style.width = "80%";
+        col1.style.display = "inline-block";
+        var col2 = document.createElement('div');
+        col2.className="col3";
+        col2.id = "menu";
+        col2.style.display = "inline-block";
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv)
+        var Filters = {"Populasi": "real","Kecamatan": "str","Radius": "str"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1;
+                          i >= 0; --i){
+                          if (selection.indexOf(
+                          features[i].properties[key])<0
+                          && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                  }
+                }
+                if (Filters[key] == "int"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key])
+                          < sliderVals[0]
+                          || parseInt(features[i].properties[key])
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "real"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key]
+                          < sliderVals[0]
+                          || features[i].properties[key]
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "date"
+                  || Filters[key] == "datetime"
+                  || Filters[key] == "time"){
+                  try{
+                    if (key in features[0].properties){
+                      HTMLkey = key.replace(/[&\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                      startdate = document.getElementById("dat_" +
+                        HTMLkey + "_date1").value.replace(" ", "T");
+                      enddate = document.getElementById("dat_" +
+                        HTMLkey + "_date2").value.replace(" ", "T");
+                      for (i = features.length - 1; i >= 0; --i){
+                        if (features[i].properties[key] < startdate
+                          || features[i].properties[key] > enddate){
+                          features.splice(i,1);
+                        }
+                      }
+                    }
+                  } catch(err){
+                  }
+                }
+              }
+            } catch(err){
+            }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+          }
+          })
+        }
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_Populasi = document.createElement("div");
+            div_Populasi.id = "div_Populasi";
+            div_Populasi.className = "slider";
+            document.getElementById("menu").appendChild(div_Populasi);
+            var lab_Populasi = document.createElement('div');
+            lab_Populasi.innerHTML  = 'Populasi: <span id="val_Populasi"></span>';
+            lab_Populasi.className = 'filterlabel';
+            document.getElementById("menu").appendChild(lab_Populasi);
+            var reset_Populasi = document.createElement('div');
+            reset_Populasi.innerHTML = 'clear filter';
+            reset_Populasi.className = 'filterlabel';
+            lab_Populasi.className = 'filterlabel';
+            reset_Populasi.onclick = function() {
+                sel_Populasi.noUiSlider.reset();
+            };
+            document.getElementById("menu").appendChild(reset_Populasi);
+            var sel_Populasi = document.getElementById('div_Populasi');
+            noUiSlider.create(sel_Populasi, {
+                connect: true,
+                start: [132.0, 78362.0],
+                range: {
+                min: 132.0,
+                max: 78362.0
+                }
+            });
+            sel_Populasi.noUiSlider.on('update', function (values) {
+            val_Populasi = document.getElementById('val_Populasi');
+            val_Populasi.innerHTML = values.join(' - ');
+                filterFunc()
+            });
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_Kecamatan = document.createElement('div');
+            div_Kecamatan.id = "div_Kecamatan";
+            div_Kecamatan.className= "filterselect";
+            document.getElementById("menu").appendChild(div_Kecamatan);
+            sel_Kecamatan = document.createElement('select');
+            sel_Kecamatan.multiple = true;
+            sel_Kecamatan.size = 10;
+            sel_Kecamatan.id = "sel_Kecamatan";
+            var Kecamatan_options_str = "<option value='' unselected></option>";
+            sel_Kecamatan.onchange = function(){filterFunc()};
+            Kecamatan_options_str  += '<option value="Biringkanaya">Biringkanaya</option>';
+            Kecamatan_options_str  += '<option value="Biringkanaya-Iso">Biringkanaya-Iso</option>';
+            Kecamatan_options_str  += '<option value="Bontoala">Bontoala</option>';
+            Kecamatan_options_str  += '<option value="Bontoala-Iso">Bontoala-Iso</option>';
+            Kecamatan_options_str  += '<option value="Makassar">Makassar</option>';
+            Kecamatan_options_str  += '<option value="Makassar-Iso">Makassar-Iso</option>';
+            Kecamatan_options_str  += '<option value="Mamajang">Mamajang</option>';
+            Kecamatan_options_str  += '<option value="Mamajang-Iso">Mamajang-Iso</option>';
+            Kecamatan_options_str  += '<option value="Manggala">Manggala</option>';
+            Kecamatan_options_str  += '<option value="Manggala-Iso">Manggala-Iso</option>';
+            Kecamatan_options_str  += '<option value="Mariso">Mariso</option>';
+            Kecamatan_options_str  += '<option value="Mariso-Iso">Mariso-Iso</option>';
+            Kecamatan_options_str  += '<option value="Panakkukang">Panakkukang</option>';
+            Kecamatan_options_str  += '<option value="Panakkukang-Iso">Panakkukang-Iso</option>';
+            Kecamatan_options_str  += '<option value="Rappocini">Rappocini</option>';
+            Kecamatan_options_str  += '<option value="Rappocini-Iso">Rappocini-Iso</option>';
+            Kecamatan_options_str  += '<option value="Tallo">Tallo</option>';
+            Kecamatan_options_str  += '<option value="Tallo-Iso">Tallo-Iso</option>';
+            Kecamatan_options_str  += '<option value="Tamalanrea">Tamalanrea</option>';
+            Kecamatan_options_str  += '<option value="Tamalanrea-Iso">Tamalanrea-Iso</option>';
+            Kecamatan_options_str  += '<option value="Tamalate">Tamalate</option>';
+            Kecamatan_options_str  += '<option value="Tamalate-Iso">Tamalate-Iso</option>';
+            Kecamatan_options_str  += '<option value="Ujung Pandang">Ujung Pandang</option>';
+            Kecamatan_options_str  += '<option value="Ujung Tanah">Ujung Tanah</option>';
+            Kecamatan_options_str  += '<option value="UjungPandang-Iso">UjungPandang-Iso</option>';
+            Kecamatan_options_str  += '<option value="UjungTanah-Iso">UjungTanah-Iso</option>';
+            Kecamatan_options_str  += '<option value="Wajo">Wajo</option>';
+            Kecamatan_options_str  += '<option value="Wajo-Iso">Wajo-Iso</option>';
+            sel_Kecamatan.innerHTML = Kecamatan_options_str;
+            div_Kecamatan.appendChild(sel_Kecamatan);
+            var lab_Kecamatan = document.createElement('div');
+            lab_Kecamatan.innerHTML = 'Kecamatan';
+            lab_Kecamatan.className = 'filterlabel';
+            div_Kecamatan.appendChild(lab_Kecamatan);
+            var reset_Kecamatan = document.createElement('div');
+            reset_Kecamatan.innerHTML = 'clear filter';
+            reset_Kecamatan.className = 'filterlabel';
+            reset_Kecamatan.onclick = function() {
+                var options = document.getElementById("sel_Kecamatan").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_Kecamatan.appendChild(reset_Kecamatan);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_Radius = document.createElement('div');
+            div_Radius.id = "div_Radius";
+            div_Radius.className= "filterselect";
+            document.getElementById("menu").appendChild(div_Radius);
+            sel_Radius = document.createElement('select');
+            sel_Radius.multiple = true;
+            sel_Radius.size = 3;
+            sel_Radius.id = "sel_Radius";
+            var Radius_options_str = "<option value='' unselected></option>";
+            sel_Radius.onchange = function(){filterFunc()};
+            Radius_options_str  += '<option value="1000">1000</option>';
+            Radius_options_str  += '<option value="1500">1500</option>';
+            Radius_options_str  += '<option value="500">500</option>';
+            sel_Radius.innerHTML = Radius_options_str;
+            div_Radius.appendChild(sel_Radius);
+            var lab_Radius = document.createElement('div');
+            lab_Radius.innerHTML = 'Radius';
+            lab_Radius.className = 'filterlabel';
+            div_Radius.appendChild(lab_Radius);
+            var reset_Radius = document.createElement('div');
+            reset_Radius.innerHTML = 'clear filter';
+            reset_Radius.className = 'filterlabel';
+            reset_Radius.onclick = function() {
+                var options = document.getElementById("sel_Radius").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_Radius.appendChild(reset_Radius);
+        </script>
+    </body>
+</html>
