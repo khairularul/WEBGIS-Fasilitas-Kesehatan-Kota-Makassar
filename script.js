@@ -69,7 +69,7 @@ const iconFaskes = L.icon({
 });
 
 // ===== Load Titik Faskes =====
-$.getJSON("./data/Faskes.geojson", function (data) {
+$.getJSON("https://khairularul.github.io/WEBGIS-Fasilitas-Kesehatan-Kota-Makassar/data/Faskes.geojson", function (data) {
   L.geoJSON(data, {
     pointToLayer: (feature, latlng) => L.marker(latlng, { icon: iconFaskes }),
     onEachFeature: function (feature, layer) {
@@ -89,7 +89,7 @@ $.getJSON("./data/Faskes.geojson", function (data) {
 });
 
 // ===== Load Batas Kecamatan =====
-$.getJSON("./data/BatasKecamatan.geojson", function (data) {
+$.getJSON("https://khairularul.github.io/WEBGIS-Fasilitas-Kesehatan-Kota-Makassar/data/BatasKecamatan.geojson", function (data) {
   L.geoJSON(data, {
     style: {
       color: "black",
@@ -111,7 +111,7 @@ function getRadiusColor(jangkauan) {
   else return "#005a32";
 }
 
-$.getJSON("./data/Radius.geojson", function (data) {
+$.getJSON("https://khairularul.github.io/WEBGIS-Fasilitas-Kesehatan-Kota-Makassar/data/Radius.geojson", function (data) {
   L.geoJSON(data, {
     style: function (feature) {
       return {
@@ -140,7 +140,7 @@ function getJalanColor(rem) {
   }
 }
 
-$.getJSON("./data/Jalan.geojson", function (data) {
+$.getJSON("https://khairularul.github.io/WEBGIS-Fasilitas-Kesehatan-Kota-Makassar/data/Jalan.geojson", function (data) {
   L.geoJSON(data, {
     style: function (feature) {
       return {
